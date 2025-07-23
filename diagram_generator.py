@@ -1,38 +1,63 @@
-def generate_diagram_dynamic(sectors: list[str], values: list[int], title: str, color: str) -> str:
-    import matplotlib.pyplot as plt
-    import numpy as np
-    import uuid
-    import os
+import matplotlib.pyplot as plt
+import numpy as np
 
-    if len(sectors) != len(values):
-        raise ValueError("Количество секторов и значений должно совпадать")
-
-    angles = np.linspace(0, 2 * np.pi, len(sectors), endpoint=False)
-    width = 2 * np.pi / len(sectors)
+def generate_diagram_dynamic(sectors, completion, title="Отчет", color="#9b5de5"):
+    num_sectors = len(sectors)
+    angles = np.linspace(0, 2 * np.pi, num_sectors, endpoint=False)
+    width = 2 * np.pi / num_sectors
 
     fig, ax = plt.subplots(figsize=(9, 9), subplot_kw={'projection': 'polar'})
-    bars = ax.bar(angles, values, width=width, bottom=0, color=color, edgecolor='black', alpha=0.8)
 
-    for angle, radius, sector in zip(angles, values, sectors):
-        rotation = np.degrees(angle)
-        ha = 'left' if 0 <= rotation <= 180 else 'right'
-        if 90 < rotation < 270:
-            rotation += 180
-        ax.text(angle, 120, sector, ha=ha, va='center', rotation=rotation, fontsize=9)
+    ax.set_theta_offset(np.pi / 2)
+    ax.set_theta_direction(-1)
+    ax.set_ylim(0, 100)
 
-    for angle, radius in zip(angles, values):
-        ax.text(angle, radius - 5, f"{radius}%", ha='center', va='center', fontsize=9, color='white', fontweight='bold')
+    # Основные лепестки
+    bars = ax.bar(
+        angles, completion,
+        width=width, bottom=0,
+        color=color, edgecolor='black', linewidth=1.5,
+        alpha=0.85, zorder=3
+    )
 
-    ax.set_ylim(0, 130)
+    ax.set_xticks([])
     ax.set_yticklabels([])
-    ax.set_xticklabels([])
 
-    plt.title(title or "Отчет", fontsize=14, pad=20)
+    # Серые линии по границам лепестков
+    for angle, value in zip(angles, completion):
+        left_edge = angle - width / 2
+        right_edge = angle + width / 2
+        if value < 100:
+            ax.plot([left_edge, left_edge], [value, 100], color='lightgray', linewidth=1.2, zorder=4)
+            ax.plot([right_edge, right_edge], [value, 100], color='lightgray', linewidth=1.2, zorder=4)
 
-    os.makedirs("generated", exist_ok=True)
-    filename = f"{uuid.uuid4().hex}.png"
-    filepath = os.path.join("generated", filename)
-    plt.savefig(filepath, dpi=300, bbox_inches='tight')
+    # Значения внутри лепестков
+    for angle, radius in zip(angles, completion):
+        ax.text(
+            angle, radius - 5, f"{radius}%",
+            ha='center', va='center',
+            fontsize=9, color='white', fontweight='bold', zorder=5
+        )
+
+    # Подписи лепестков — всегда горизонтальные
+    for angle, label in zip(angles, sectors):
+        label_radius = 115 + len(label) * 0.8  # Отодвигаем в зависимости от длины текста
+
+        ax.text(
+            angle, label_radius, label,
+            ha='center', va='center',
+            rotation=0,
+            fontsize=9,
+            zorder=6
+        )
+
+    # Заголовок — по центру
+    plt.title(title, fontsize=16, y=1.13, ha='center')
+
+    # Добавим нижний отступ, чтобы не слипалось
+    fig.subplots_adjust(bottom=0.2)
+
+    file_path = "diagram.png"
+    plt.savefig(file_path, dpi=300)
     plt.close()
-
-    return filepath
+    return file_path
